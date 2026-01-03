@@ -39,11 +39,6 @@
 
 **OrderStream** is a comprehensive digital restaurant order management system designed to streamline the food ordering process. Built with the MERN stack (MongoDB, Express.js, React, Node.js), it provides a seamless experience for customers to browse menus, place orders, and track their delivery status in real-time.
 
-### 🎓 Project Status
-- ✅ **40% Complete** - Core functionality implemented
-- 🚀 **Demo-Ready** - Fully functional MVP
-- 📚 **Academic Project** - Built for learning and demonstration
-
 ---
 
 ## ✨ Features
@@ -214,13 +209,6 @@ JWT_SECRET=your_super_secret_jwt_key_here_change_in_production
 ### Frontend `.env`
 ```env
 VITE_API_URL=http://localhost:5000/api
-```
-
-> ⚠️ **Important:** Never commit `.env` files to version control. Add them to `.gitignore`.
-
----
-
-## 📡 API Documentation
 
 ### Base URL
 ```
@@ -422,7 +410,7 @@ Authorization: Bearer <token>
 
 ## 🗺️ Roadmap
 
-### ✅ Completed (40%)
+### ✅ Completed (Half)
 - [x] User authentication system
 - [x] Menu browsing and filtering
 - [x] Shopping cart functionality
