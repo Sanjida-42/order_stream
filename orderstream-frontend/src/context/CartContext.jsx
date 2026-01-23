@@ -1,37 +1,48 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
+import { AuthContext } from './AuthContext';
 
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
+    const { user } = useContext(AuthContext);
     const [cart, setCart] = useState([]);
 
+    // Load cart when user changes
     useEffect(() => {
-        const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
-        setCart(savedCart);
-    }, []);
+        if (user) {
+            const savedCart = JSON.parse(localStorage.getItem(`cart_${user.id}`) || '[]');
+            setCart(savedCart);
+        } else {
+            setCart([]);
+        }
+    }, [user]);
 
     const updateCart = (newCart) => {
         setCart(newCart);
-        localStorage.setItem('cart', JSON.stringify(newCart));
+        if (user) {
+            localStorage.setItem(`cart_${user.id}`, JSON.stringify(newCart));
+        }
     };
 
-    const addToCart = (item) => {
-        const existingItem = cart.find(cartItem => cartItem._id === item._id);
+    const addToCart = (item, quantityToAdd = 1) => {
+        const itemId = item.id || item._id;
+        const existingItem = cart.find(cartItem => (cartItem.id || cartItem._id) === itemId);
+
         if (existingItem) {
             updateCart(
                 cart.map(cartItem =>
-                    cartItem._id === item._id
-                        ? { ...cartItem, quantity: cartItem.quantity + 1 }
+                    (cartItem.id || cartItem._id) === itemId
+                        ? { ...cartItem, quantity: cartItem.quantity + quantityToAdd }
                         : cartItem
                 )
             );
         } else {
-            updateCart([...cart, { ...item, quantity: 1 }]);
+            updateCart([...cart, { ...item, id: itemId, quantity: quantityToAdd }]);
         }
     };
 
     const removeFromCart = (itemId) => {
-        updateCart(cart.filter(item => item._id !== itemId));
+        updateCart(cart.filter(item => (item.id || item._id) !== itemId));
     };
 
     const updateQuantity = (itemId, quantity) => {
@@ -40,7 +51,7 @@ export const CartProvider = ({ children }) => {
         } else {
             updateCart(
                 cart.map(item =>
-                    item._id === itemId ? { ...item, quantity } : item
+                    (item.id || item._id) === itemId ? { ...item, quantity } : item
                 )
             );
         }

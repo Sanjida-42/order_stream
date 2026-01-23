@@ -1,78 +1,55 @@
-import { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useContext } from 'react';
 import { orderAPI } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
+import ReviewForm from '../components/ReviewForm';
 
 const Orders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const { user } = useContext(AuthContext);
-    const navigate = useNavigate();
+    const [reviewModal, setReviewModal] = useState({ show: false, menuItemId: null, orderId: null });
 
     useEffect(() => {
-        if (!user) {
-            navigate('/login');
-            return;
-        }
-        fetchOrders();
-    }, [user, navigate]);
+        const fetchOrders = async () => {
+            try {
+                if (user) {
+                    const response = await orderAPI.getUserOrders();
+                    setOrders(response.data);
+                }
+            } catch (error) {
+                console.error("Error fetching orders:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const fetchOrders = async () => {
-        try {
-            const response = await orderAPI.getUserOrders();
-            setOrders(response.data);
-        } catch (error) {
-            console.error('Error fetching orders:', error);
-            setError('Failed to load orders');
-        } finally {
-            setLoading(false);
-        }
+        fetchOrders();
+    }, [user]);
+
+    const handleReviewClick = (menuItemId, orderId) => {
+        setReviewModal({ show: true, menuItemId, orderId });
     };
 
     const getStatusColor = (status) => {
         const colors = {
-            pending: '#ffc107',
-            preparing: '#17a2b8',
-            ready: '#28a745',
-            delivered: '#6c757d'
+            pending: '#f1c40f',
+            confirmed: '#3498db',
+            preparing: '#9b59b6',
+            ready: '#e67e22',
+            out_for_delivery: '#1abc9c',
+            delivered: '#2ecc71',
+            cancelled: '#e74c3c'
         };
-        return colors[status] || '#6c757d';
+        return colors[status] || '#95a5a6';
     };
 
-    const getStatusIcon = (status) => {
-        const icons = {
-            pending: '⏳',
-            preparing: '👨‍🍳',
-            ready: '✅',
-            delivered: '🚚'
-        };
-        return icons[status] || '📦';
-    };
+    if (loading) return <div>Loading...</div>;
 
-    if (loading) {
-        return <div className="spinner"></div>;
-    }
-
-    if (error) {
+    if (!orders.length) {
         return (
-            <div style={styles.error}>
-                <p>{error}</p>
-                <button onClick={fetchOrders} style={styles.retryButton}>
-                    Retry
-                </button>
-            </div>
-        );
-    }
-
-    if (orders.length === 0) {
-        return (
-            <div style={styles.emptyOrders}>
-                <h2>No orders yet</h2>
-                <p>Start ordering from our delicious menu!</p>
-                <button onClick={() => navigate('/menu')} style={styles.browseButton}>
-                    Browse Menu
-                </button>
+            <div style={{ textAlign: 'center', marginTop: '50px' }}>
+                <h2>No orders found</h2>
+                <p>Start ordering delicious food now!</p>
             </div>
         );
     }
@@ -80,235 +57,215 @@ const Orders = () => {
     return (
         <div style={styles.container}>
             <h1 style={styles.title}>Your Orders</h1>
-
-            <div style={styles.ordersGrid}>
+            <div style={styles.list}>
                 {orders.map((order) => (
-                    <div key={order._id} style={styles.orderCard}>
-                        {/* Order Header */}
-                        <div style={styles.orderHeader}>
-                            <div>
-                                <h3 style={styles.orderId}>
-                                    Order #{order._id.slice(-6).toUpperCase()}
-                                </h3>
-                                <p style={styles.orderDate}>
-                                    {new Date(order.createdAt).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                    })}
-                                </p>
-                            </div>
-                            <div
-                                style={{
-                                    ...styles.statusBadge,
-                                    backgroundColor: getStatusColor(order.status)
-                                }}
-                            >
-                                <span style={styles.statusIcon}>
-                                    {getStatusIcon(order.status)}
-                                </span>
-                                <span style={styles.statusText}>
-                                    {order.status.toUpperCase()}
-                                </span>
-                            </div>
+                    <div key={order._id || order.id} style={styles.card}>
+                        <div style={styles.header}>
+                            <span style={styles.orderId}>Order #{order._id || order.id}</span>
+                            <span style={{
+                                ...styles.status,
+                                backgroundColor: getStatusColor(order.status)
+                            }}>
+                                {order.status.replace('_', ' ').toUpperCase()}
+                            </span>
                         </div>
 
-                        {/* Order Items */}
-                        <div style={styles.itemsSection}>
-                            <h4 style={styles.sectionTitle}>Items:</h4>
-                            {order.items.map((item, index) => (
-                                <div key={index} style={styles.orderItem}>
-                                    <span style={styles.itemInfo}>
-                                        {item.name} × {item.quantity}
-                                    </span>
-                                    <span style={styles.itemPrice}>
-                                        ${(item.price * item.quantity).toFixed(2)}
-                                    </span>
+                        <div style={styles.date}>
+                            {new Date(order.createdAt).toLocaleString()}
+                        </div>
+
+                        <div style={styles.items}>
+                            {order.items.map((item, idx) => (
+                                <div key={idx} style={styles.item}>
+                                    <span>{item.quantity}x {item.name}</span>
+                                    <span>৳{(item.price * item.quantity).toFixed(2)}</span>
+                                    {order.status === 'delivered' && (
+                                        <button
+                                            onClick={() => handleReviewClick(item.menuItemId, order._id || order.id)}
+                                            style={styles.reviewBtn}
+                                        >
+                                            Review
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
 
-                        {/* Order Details */}
-                        <div style={styles.detailsSection}>
-                            <div style={styles.detailRow}>
-                                <span style={styles.detailLabel}>📍 Delivery Address:</span>
-                                <span style={styles.detailValue}>{order.deliveryAddress}</span>
+                        <div style={styles.footer}>
+                            <div style={styles.row}>
+                                <span>Subtotal:</span>
+                                <span>৳{order.subtotal?.toFixed(2)}</span>
                             </div>
-                            <div style={styles.detailRow}>
-                                <span style={styles.detailLabel}>📞 Phone:</span>
-                                <span style={styles.detailValue}>{order.phone}</span>
+                            <div style={styles.row}>
+                                <span>Delivery:</span>
+                                <span>৳{order.deliveryFee?.toFixed(2)}</span>
                             </div>
-                        </div>
+                            {order.discountAmount > 0 && (
+                                <div style={{ ...styles.row, color: '#28a745' }}>
+                                    <span>Discount:</span>
+                                    <span>-৳{order.discountAmount?.toFixed(2)}</span>
+                                </div>
+                            )}
+                            <div style={{ ...styles.row, fontWeight: 'bold', fontSize: '18px', marginTop: '10px' }}>
+                                <span>Total:</span>
+                                <span>৳{order.totalPrice.toFixed(2)}</span>
+                            </div>
 
-                        {/* Order Total */}
-                        <div style={styles.totalSection}>
-                            <span style={styles.totalLabel}>Total Amount:</span>
-                            <span style={styles.totalAmount}>
-                                ${order.totalPrice.toFixed(2)}
-                            </span>
+                            {/* Order Status History */}
+                            {order.statusHistory && order.statusHistory.length > 0 && (
+                                <div style={styles.historyContainer}>
+                                    <div style={styles.historyTitle}>Order Updates</div>
+                                    {order.statusHistory.map((h, i) => (
+                                        <div key={i} style={styles.historyItem}>
+                                            <div style={styles.historyDot}></div>
+                                            <div style={styles.historyContent}>
+                                                <div style={styles.historyStatus}>{h.newStatus.replace('_', ' ').toUpperCase()}</div>
+                                                <div style={styles.historyTime}>{new Date(h.changedAt).toLocaleString()}</div>
+                                                {h.notes && <div style={styles.historyNotes}>{h.notes}</div>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}
             </div>
+
+            {reviewModal.show && (
+                <ReviewForm
+                    menuItemId={reviewModal.menuItemId}
+                    orderId={reviewModal.orderId}
+                    onReviewSubmitted={() => setReviewModal({ show: false, menuItemId: null, orderId: null })}
+                    onClose={() => setReviewModal({ show: false, menuItemId: null, orderId: null })}
+                />
+            )}
         </div>
     );
 };
 
 const styles = {
     container: {
-        flex: 1,
-        padding: '40px 20px',
-        maxWidth: '1200px',
-        margin: '0 auto'
+        padding: '20px',
+        maxWidth: '800px',
+        margin: '0 auto',
     },
     title: {
-        fontSize: '36px',
-        fontWeight: 'bold',
+        textAlign: 'center',
         marginBottom: '30px',
         color: '#333'
     },
-    ordersGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
-        gap: '25px'
+    list: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px'
     },
-    orderCard: {
-        backgroundColor: 'white',
+    card: {
+        border: '1px solid #ddd',
         borderRadius: '10px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        padding: '25px',
-        transition: 'box-shadow 0.3s'
+        padding: '20px',
+        backgroundColor: 'white',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
     },
-    orderHeader: {
+    header: {
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '20px',
-        paddingBottom: '15px',
-        borderBottom: '2px solid #f0f0f0'
+        alignItems: 'center',
+        marginBottom: '10px'
     },
     orderId: {
-        fontSize: '20px',
-        fontWeight: '700',
-        color: '#333',
-        marginBottom: '5px'
-    },
-    orderDate: {
-        fontSize: '14px',
-        color: '#666'
-    },
-    statusBadge: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '8px 16px',
-        borderRadius: '20px',
-        color: 'white'
-    },
-    statusIcon: {
+        fontWeight: 'bold',
         fontSize: '18px'
     },
-    statusText: {
-        fontSize: '13px',
-        fontWeight: '700',
-        letterSpacing: '0.5px'
+    status: {
+        padding: '5px 10px',
+        borderRadius: '15px',
+        color: 'white',
+        fontSize: '12px',
+        fontWeight: 'bold'
     },
-    itemsSection: {
+    date: {
+        color: '#666',
+        fontSize: '14px',
         marginBottom: '20px'
     },
-    sectionTitle: {
-        fontSize: '16px',
-        fontWeight: '600',
-        marginBottom: '12px',
-        color: '#333'
+    items: {
+        borderTop: '1px solid #eee',
+        borderBottom: '1px solid #eee',
+        padding: '15px 0',
+        marginBottom: '15px'
     },
-    orderItem: {
+    item: {
         display: 'flex',
         justifyContent: 'space-between',
-        padding: '10px 0',
-        borderBottom: '1px solid #f0f0f0'
+        alignItems: 'center',
+        marginBottom: '10px',
+        color: '#444'
     },
-    itemInfo: {
-        fontSize: '15px',
-        color: '#555'
+    reviewBtn: {
+        padding: '4px 8px',
+        fontSize: '12px',
+        marginLeft: '10px',
+        backgroundColor: '#007bff',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer'
     },
-    itemPrice: {
-        fontSize: '15px',
-        fontWeight: '600',
-        color: '#28a745'
+    footer: {
+        marginTop: '10px'
     },
-    detailsSection: {
-        marginBottom: '20px',
+    row: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginBottom: '5px'
+    },
+    historyContainer: {
+        marginTop: '20px',
         padding: '15px',
         backgroundColor: '#f8f9fa',
         borderRadius: '8px'
     },
-    detailRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        marginBottom: '10px'
-    },
-    detailLabel: {
+    historyTitle: {
         fontSize: '14px',
-        fontWeight: '600',
-        color: '#555'
+        fontWeight: 'bold',
+        marginBottom: '12px',
+        color: '#666'
     },
-    detailValue: {
-        fontSize: '14px',
-        color: '#333',
-        textAlign: 'right',
-        maxWidth: '60%'
-    },
-    totalSection: {
+    historyItem: {
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingTop: '15px',
-        borderTop: '2px solid #f0f0f0'
+        gap: '12px',
+        borderLeft: '2px solid #ddd',
+        paddingLeft: '15px',
+        paddingBottom: '15px',
+        position: 'relative'
     },
-    totalLabel: {
-        fontSize: '18px',
+    historyDot: {
+        position: 'absolute',
+        left: '-7px',
+        top: '0',
+        width: '12px',
+        height: '12px',
+        borderRadius: '50%',
+        backgroundColor: '#007bff'
+    },
+    historyContent: {
+        flex: 1
+    },
+    historyStatus: {
+        fontSize: '13px',
         fontWeight: '600',
         color: '#333'
     },
-    totalAmount: {
-        fontSize: '24px',
-        fontWeight: '700',
-        color: '#28a745'
+    historyTime: {
+        fontSize: '11px',
+        color: '#999'
     },
-    emptyOrders: {
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '50px',
-        textAlign: 'center'
-    },
-    browseButton: {
-        marginTop: '20px',
-        padding: '12px 30px',
-        backgroundColor: '#007bff',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5px',
-        fontSize: '16px',
-        cursor: 'pointer'
-    },
-    error: {
-        textAlign: 'center',
-        marginTop: '50px'
-    },
-    retryButton: {
-        marginTop: '20px',
-        padding: '10px 20px',
-        backgroundColor: '#007bff',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: 'pointer'
+    historyNotes: {
+        fontSize: '12px',
+        color: '#666',
+        marginTop: '4px',
+        fontStyle: 'italic'
     }
 };
 

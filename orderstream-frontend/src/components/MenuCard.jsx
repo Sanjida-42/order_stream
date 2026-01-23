@@ -7,7 +7,7 @@ const MenuCard = ({ item, onAddToCart }) => {
                 <p style={styles.description}>{item.description}</p>
                 <div style={styles.footer}>
                     <div>
-                        <p style={styles.price}>${item.price.toFixed(2)}</p>
+                        <p style={styles.price}>৳{item.price.toFixed(2)}</p>
                         <p style={styles.rating}>⭐ {item.rating} / 5</p>
                     </div>
                     <button onClick={() => onAddToCart(item)} style={styles.button}>

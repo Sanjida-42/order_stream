@@ -42,13 +42,19 @@ export const AuthProvider = ({ children }) => {
         return response.data;
     };
 
+    const updateUserProfile = async (userData) => {
+        const response = await authAPI.updateProfile(userData);
+        setUser(response.data.user);
+        return response.data;
+    };
+
     const logout = () => {
         localStorage.removeItem('token');
         setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, register, logout, updateUserProfile, loading }}>
             {children}
         </AuthContext.Provider>
     );
